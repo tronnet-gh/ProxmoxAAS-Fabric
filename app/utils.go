@@ -35,21 +35,6 @@ func GetConfig(configPath string) Config {
 	return config
 }
 
-// finds the first substring r in s such that s = ... a r b ...
-func FindSubstringBetween(s string, a string, b string) (string, error) {
-	x := strings.Split(s, a)
-	if len(x) <= 2 {
-		return "", fmt.Errorf("%s not found in %s", a, s)
-	}
-
-	y := strings.Split(x[1], b)
-	if len(y) <= 2 {
-		return "", fmt.Errorf("%s not found in %s", b, s)
-	}
-
-	return y[0], nil
-}
-
 // returns if a device pcie bus id is a super device or subsystem device
 //
 // subsystem devices always has the format xxxx:yy.z, whereas super devices have the format xxxx:yy

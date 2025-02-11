@@ -87,6 +87,10 @@ func (host *Host) RebuildVM(vmid uint) error {
 		instance.RebuildNet(netid)
 	}
 
+	for deviceid := range instance.configHostPCIs {
+		instance.RebuildDevice(*host, deviceid)
+	}
+
 	return nil
 }
 
@@ -135,6 +139,45 @@ func (instance *Instance) RebuildNet(netid string) error {
 	}
 
 	instance.Net[uint(idnum)] = &netinfo
+
+	return nil
+}
+
+func (instance *Instance) RebuildDevice(host Host, deviceid string) error {
+	instanceDevice, ok := instance.configHostPCIs[deviceid]
+	if !ok { // if device does not exist
+		return fmt.Errorf("%s not found in devices", deviceid)
+	}
+
+	hostDeviceBusID := strings.Split(instanceDevice, ",")[0]
+
+	instanceDeviceBusID, err := strconv.ParseUint(strings.TrimPrefix(deviceid, "hostpci"), 10, 64)
+	if err != nil {
+		return err
+	}
+
+	if DeviceBusIDIsSuperDevice(hostDeviceBusID) {
+		hostSuperDevice := host.Hardware[hostDeviceBusID]
+		subDevices := []*HostDevice{}
+		for _, v := range hostSuperDevice.Devices {
+			subDevices = append(subDevices, v)
+		}
+		instance.Device[uint(instanceDeviceBusID)] = &InstanceDevice{
+			Device: subDevices,
+			PCIE:   strings.Contains(instanceDevice, "pcie=1"),
+		}
+	} else {
+		_, hostSubdeviceBusID, err := SplitDeviceBusID(hostDeviceBusID)
+		if err != nil {
+			return err
+		}
+		instance.Device[uint(instanceDeviceBusID)] = &InstanceDevice{
+			Device: []*HostDevice{
+				host.Hardware[hostDeviceBusID].Devices[hostSubdeviceBusID],
+			},
+			PCIE: strings.Contains(instanceDevice, "pcie=1"),
+		}
+	}
 
 	return nil
 }
@@ -192,6 +235,9 @@ func (i Instance) String() string {
 		for k, v := range i.Net {
 			r += fmt.Sprintf("\t\t\tnet%d: %s\n", k, v)
 		}
+		for k, v := range i.Device {
+			r += fmt.Sprintf("\t\t\thostpci%d: %s\n", k, v)
+		}
 		return r
 	} else {
 		r := fmt.Sprintf("CT, Name: %s, Cores: %d, Memory: %d, Swap: %d\n", i.Name, i.Cores, i.Memory, i.Swap)
@@ -211,4 +257,12 @@ func (v Volume) String() string {
 
 func (n Net) String() string {
 	return fmt.Sprintf("rate: %d, vlan: %d", n.Rate, n.VLAN)
+}
+
+func (d InstanceDevice) String() string {
+	r := ""
+	for _, v := range d.Device {
+		r += fmt.Sprintf("%s:%s ", v.SubVendorName, v.SubDeviceName)
+	}
+	return r
 }

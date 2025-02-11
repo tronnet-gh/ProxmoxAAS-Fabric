@@ -2,7 +2,7 @@ package app
 
 import "github.com/luthermonson/go-proxmox"
 
-type Resource struct { // number of virtual cores (usually threads)
+type Resource struct {
 	Reserved uint64
 	Free     uint64
 	Total    uint64
@@ -26,18 +26,19 @@ const (
 )
 
 type Instance struct {
-	Type        InstanceType
-	Name        string
-	Proctype    string
-	Cores       uint64
-	Memory      uint64
-	Swap        uint64
-	Volume      map[string]*Volume
-	Net         map[uint]*Net
-	Device      map[uint]*InstanceDevice
-	config      interface{}
-	configDisks map[string]string
-	configNets  map[string]string
+	Type           InstanceType
+	Name           string
+	Proctype       string
+	Cores          uint64
+	Memory         uint64
+	Swap           uint64
+	Volume         map[string]*Volume
+	Net            map[uint]*Net
+	Device         map[uint]*InstanceDevice
+	config         interface{}
+	configDisks    map[string]string
+	configNets     map[string]string
+	configHostPCIs map[string]string
 	proxmox.ContainerInterface
 }
 

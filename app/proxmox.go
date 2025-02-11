@@ -138,7 +138,7 @@ func (host Host) VirtualMachine(VMID uint) (Instance, error) {
 	}
 
 	config := vm.VirtualMachineConfig
-	config.HostPCIs = config.MergeHostPCIs()
+	instance.configHostPCIs = config.MergeHostPCIs()
 	instance.configNets = config.MergeNets()
 	instance.configDisks = MergeVMDisksAndUnused(config)
 
@@ -186,6 +186,7 @@ func (host Host) Container(VMID uint) (Instance, error) {
 	}
 
 	config := ct.ContainerConfig
+	instance.configHostPCIs = make(map[string]string)
 	instance.configNets = config.MergeNets()
 	instance.configDisks = MergeCTDisksAndUnused(config)
 
