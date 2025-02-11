@@ -1,9 +1,11 @@
 package app
 
+import "github.com/luthermonson/go-proxmox"
+
 type Resource struct { // number of virtual cores (usually threads)
-	Reserved int64
-	Free     int64
-	Total    int64
+	Reserved uint64
+	Free     uint64
+	Total    uint64
 }
 
 type Host struct {
@@ -11,47 +13,88 @@ type Host struct {
 	Cores    Resource
 	Memory   Resource
 	Swap     Resource
-	Storage  map[string]Storage
-	Hardware map[string]Device
+	Hardware map[string]*HostSuperDevice
+	//QEMU     map[uint]*QEMUInstance
+	//LXC      map[uint]*LXCInstance
+	Instance map[uint]*Instance
+	node     *proxmox.Node
 }
 
-type Storage struct{}
-
+/*
 type QEMUInstance struct {
 	Name     string
 	Proctype string
-	Cores    Resource
-	Memory   Resource
-	Drive    map[int]Volume
-	Disk     map[int]Volume
-	Net      map[int]Net
-	Device   map[int]Device
+	Cores    uint64
+	Memory   uint64
+	Drive    map[uint]*Volume
+	Disk     map[uint]*Volume
+	Net      map[uint]*Net
+	Device   map[uint]*InstanceDevice
+	vm       *proxmox.VirtualMachine
 }
 
 type LXCInstance struct {
 	Name     string
-	Cores    Resource
-	Memory   Resource
-	Swap     Resource
-	RootDisk Volume
-	MP       map[int]Volume
-	Net      map[int]Net
+	Cores    uint64
+	Memory   uint64
+	Swap     uint64
+	RootDisk *Volume
+	MP       map[uint]*Volume
+	Net      map[uint]*Net
+	ct       *proxmox.Container
+}
+*/
+
+type InstanceType bool
+
+const (
+	VM InstanceType = true
+	CT InstanceType = false
+)
+
+type Instance struct {
+	Type        InstanceType
+	Name        string
+	Proctype    string
+	Cores       uint64
+	Memory      uint64
+	Swap        uint64
+	Volume      map[string]*Volume
+	Net         map[uint]*Net
+	Device      map[uint]*InstanceDevice
+	config      interface{}
+	configDisks map[string]string
+	configNets  map[string]string
+	proxmox.ContainerInterface
 }
 
 type Volume struct {
-	Format string
 	Path   string
-	Size   string
-	Used   string
+	Format string
+	Size   uint64
+	Volid  string
 }
 
-type Net struct{}
+type Net struct {
+	Rate uint64
+	VLAN uint64
+}
 
-type Device struct {
-	BusID               string `json:"id"`
-	DeviceName          string `json:"device_name"`
-	VendorName          string `json:"vendor_name"`
-	SubsystemDeviceName string `json:"subsystem_device_name"`
-	SubsystemVendorName string `json:"subsystem_vendor_name"`
-	Reserved            bool
+type InstanceDevice struct {
+	Device []*HostDevice
+	PCIE   bool
+}
+
+type HostSuperDevice struct {
+	BusID      string
+	DeviceName string
+	VendorName string
+	Devices    map[string]*HostDevice
+}
+
+type HostDevice struct {
+	SubID         string
+	SubDeviceName string
+	SubVendorName string
+	Reserved      bool
 }

@@ -2,10 +2,10 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
-
-	"github.com/luthermonson/go-proxmox"
+	"strings"
 )
 
 const MiB = 1024 * 1024
@@ -35,16 +35,38 @@ func GetConfig(configPath string) Config {
 	return config
 }
 
-func MarshallVirtualMachineConfig(v *proxmox.VirtualMachineConfig) {
-	v.HostPCIs = make(map[string]string)
-	v.HostPCIs["hostpci0"] = v.HostPCI0
-	v.HostPCIs["hostpci1"] = v.HostPCI1
-	v.HostPCIs["hostpci2"] = v.HostPCI2
-	v.HostPCIs["hostpci3"] = v.HostPCI3
-	v.HostPCIs["hostpci4"] = v.HostPCI4
-	v.HostPCIs["hostpci5"] = v.HostPCI5
-	v.HostPCIs["hostpci6"] = v.HostPCI6
-	v.HostPCIs["hostpci7"] = v.HostPCI7
-	v.HostPCIs["hostpci8"] = v.HostPCI8
-	v.HostPCIs["hostpci9"] = v.HostPCI9
+// finds the first substring r in s such that s = ... a r b ...
+func FindSubstringBetween(s string, a string, b string) (string, error) {
+	x := strings.Split(s, a)
+	if len(x) <= 2 {
+		return "", fmt.Errorf("%s not found in %s", a, s)
+	}
+
+	y := strings.Split(x[1], b)
+	if len(y) <= 2 {
+		return "", fmt.Errorf("%s not found in %s", b, s)
+	}
+
+	return y[0], nil
+}
+
+// returns if a device pcie bus id is a super device or subsystem device
+//
+// subsystem devices always has the format xxxx:yy.z, whereas super devices have the format xxxx:yy
+func DeviceBusIDIsSuperDevice(BusID string) bool {
+	return !strings.ContainsRune(BusID, '.')
+}
+
+// splits a device pcie bus id into super device and subsystem device IDs if possible
+func SplitDeviceBusID(BusID string) (string, string, error) {
+	if DeviceBusIDIsSuperDevice(BusID) {
+		return BusID, "", nil
+	} else {
+		x := strings.Split(BusID, ".")
+		if len(x) != 2 {
+			return "", "", fmt.Errorf("BusID: %s contained more than one '.'", BusID)
+		} else {
+			return x[0], x[1], nil
+		}
+	}
 }
