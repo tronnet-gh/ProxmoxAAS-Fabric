@@ -59,22 +59,41 @@ func (pve ProxmoxClient) Nodes() ([]string, error) {
 // Gets a Node's resources but does not recursively expand instances
 func (pve ProxmoxClient) Node(nodeName string) (*Node, error) {
 	host := Node{}
-	host.Devices = make(map[string]*Device)
-	host.Instances = make(map[uint]*Instance)
+	host.Devices = make(map[DeviceID]*Device)
+	host.Instances = make(map[InstanceID]*Instance)
 
 	node, err := pve.client.Node(context.Background(), nodeName)
 	if err != nil {
 		return &host, err
 	}
 
-	devices := []Device{}
+	devices := []PVEDevice{}
 	err = pve.client.Get(context.Background(), fmt.Sprintf("/nodes/%s/hardware/pci", nodeName), &devices)
 	if err != nil {
 		return &host, err
 	}
 
 	for _, device := range devices {
-		host.Devices[device.BusID] = &device
+		x := strings.Split(device.ID, ".")
+		if len(x) != 2 { // this should always be true, but skip if not
+			continue
+		}
+		deviceid := DeviceID(x[0])
+		functionid := FunctionID(x[1])
+		if _, ok := host.Devices[deviceid]; !ok {
+			host.Devices[deviceid] = &Device{
+				DeviceID:   deviceid,
+				DeviceName: device.DeviceName,
+				VendorName: device.VendorName,
+				Functions:  make(map[FunctionID]*Function),
+			}
+		}
+		host.Devices[deviceid].Functions[functionid] = &Function{
+			FunctionID:   functionid,
+			FunctionName: device.SubsystemDeviceName,
+			VendorName:   device.SubsystemVendorName,
+			Reserved:     false,
+		}
 	}
 
 	host.Name = node.Name
@@ -119,9 +138,9 @@ func (host *Node) VirtualMachine(VMID uint) (*Instance, error) {
 	instance.Proctype = vm.VirtualMachineConfig.CPU
 	instance.Cores = uint64(vm.VirtualMachineConfig.Cores)
 	instance.Memory = uint64(vm.VirtualMachineConfig.Memory) * MiB
-	instance.Volumes = make(map[string]*Volume)
-	instance.Nets = make(map[uint]*Net)
-	instance.Devices = make(map[uint][]*Device)
+	instance.Volumes = make(map[VolumeID]*Volume)
+	instance.Nets = make(map[NetID]*Net)
+	instance.Devices = make(map[InstanceDeviceID]*Device)
 
 	return &instance, nil
 }
@@ -167,8 +186,8 @@ func (host *Node) Container(VMID uint) (*Instance, error) {
 	instance.Cores = uint64(ct.ContainerConfig.Cores)
 	instance.Memory = uint64(ct.ContainerConfig.Memory) * MiB
 	instance.Swap = uint64(ct.ContainerConfig.Swap) * MiB
-	instance.Volumes = make(map[string]*Volume)
-	instance.Nets = make(map[uint]*Net)
+	instance.Volumes = make(map[VolumeID]*Volume)
+	instance.Nets = make(map[NetID]*Net)
 
 	return &instance, nil
 }
@@ -206,7 +225,7 @@ func GetVolumeInfo(host *Node, volume string) (*Volume, error) {
 			volumeData.Storage = storageID
 			volumeData.Format = c.Format
 			volumeData.Size = uint64(c.Size)
-			volumeData.Volid = volumeID
+			volumeData.Volid = VolumeID(volumeID)
 		}
 	}
 
@@ -231,6 +250,8 @@ func GetNetInfo(net string) (*Net, error) {
 			n.VLAN = vlan
 		}
 	}
+
+	n.Value = net
 
 	return &n, nil
 }

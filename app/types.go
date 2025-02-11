@@ -14,15 +14,16 @@ type Cluster struct {
 
 type Node struct {
 	lock      sync.Mutex
-	Name      string             `json:"name"`
-	Cores     uint64             `json:"cores"`
-	Memory    uint64             `json:"memory"`
-	Swap      uint64             `json:"swap"`
-	Devices   map[string]*Device `json:"devices"`
-	Instances map[uint]*Instance `json:"instances"`
+	Name      string                   `json:"name"`
+	Cores     uint64                   `json:"cores"`
+	Memory    uint64                   `json:"memory"`
+	Swap      uint64                   `json:"swap"`
+	Devices   map[DeviceID]*Device     `json:"devices"`
+	Instances map[InstanceID]*Instance `json:"instances"`
 	pvenode   *proxmox.Node
 }
 
+type InstanceID uint64
 type InstanceType string
 
 const (
@@ -32,38 +33,58 @@ const (
 
 type Instance struct {
 	lock           sync.Mutex
-	Type           InstanceType       `json:"type"`
-	Name           string             `json:"name"`
-	Proctype       string             `json:"cpu"`
-	Cores          uint64             `json:"cores"`
-	Memory         uint64             `json:"memory"`
-	Swap           uint64             `json:"swap"`
-	Volumes        map[string]*Volume `json:"volumes"`
-	Nets           map[uint]*Net      `json:"nets"`
-	Devices        map[uint][]*Device `json:"devices"`
+	Type           InstanceType                 `json:"type"`
+	Name           string                       `json:"name"`
+	Proctype       string                       `json:"cpu"`
+	Cores          uint64                       `json:"cores"`
+	Memory         uint64                       `json:"memory"`
+	Swap           uint64                       `json:"swap"`
+	Volumes        map[VolumeID]*Volume         `json:"volumes"`
+	Nets           map[NetID]*Net               `json:"nets"`
+	Devices        map[InstanceDeviceID]*Device `json:"devices"`
 	pveconfig      interface{}
 	configDisks    map[string]string
 	configNets     map[string]string
 	configHostPCIs map[string]string
 }
 
+type VolumeID string
 type Volume struct {
-	Storage string `json:"storage"`
-	Format  string `json:"format"`
-	Size    uint64 `json:"size"`
-	Volid   string `json:"volid"`
+	Storage string   `json:"storage"`
+	Format  string   `json:"format"`
+	Size    uint64   `json:"size"`
+	Volid   VolumeID `json:"volid"`
 }
 
+type NetID uint64
 type Net struct {
-	Rate uint64 `json:"rate"`
-	VLAN uint64 `json:"vlan"`
+	Value string `json:"value"`
+	Rate  uint64 `json:"rate"`
+	VLAN  uint64 `json:"vlan"`
 }
 
-type Device struct {
-	BusID               string `json:"id"`
+type PVEDevice struct {
+	ID                  string `json:"id"`
 	DeviceName          string `json:"device_name"`
 	VendorName          string `json:"vendor_name"`
 	SubsystemDeviceName string `json:"subsystem_device_name"`
 	SubsystemVendorName string `json:"subsystem_vendor_name"`
-	Reserved            bool   `json:"reserved"`
+}
+
+type DeviceID string
+type InstanceDeviceID uint64
+type Device struct {
+	DeviceID   DeviceID                 `json:"device_id"`
+	DeviceName string                   `json:"device_name"`
+	VendorName string                   `json:"vendor_name"`
+	Functions  map[FunctionID]*Function `json:"functions"`
+	Reserved   bool                     `json:"reserved"`
+}
+
+type FunctionID string
+type Function struct {
+	FunctionID   FunctionID `json:"function_id"`
+	FunctionName string     `json:"subsystem_device_name"`
+	VendorName   string     `json:"subsystem_vendor_name"`
+	Reserved     bool       `json:"reserved"`
 }

@@ -101,6 +101,15 @@ func (cluster *Cluster) RebuildHost(hostName string) error {
 		}
 	}
 
+	// check node device reserved by iterating over each function, we will assume that a single reserved function means the device is also reserved
+	for _, device := range host.Devices {
+		reserved := false
+		for _, function := range device.Functions {
+			reserved = reserved || function.Reserved
+		}
+		device.Reserved = reserved
+	}
+
 	return nil
 }
 
@@ -113,7 +122,7 @@ func (host *Node) GetInstance(vmid uint) (*Instance, error) {
 		host.lock.Lock()
 		defer host.lock.Unlock()
 		// get instance
-		instance, ok := host.Instances[vmid]
+		instance, ok := host.Instances[InstanceID(vmid)]
 		if !ok {
 			instance_ch <- nil
 			err_ch <- fmt.Errorf("vmid %d not in host %s", vmid, host.Name)
@@ -153,7 +162,7 @@ func (host *Node) RebuildInstance(instancetype InstanceType, vmid uint) error {
 	instance.lock.Lock()
 	defer instance.lock.Unlock()
 
-	host.Instances[vmid] = instance
+	host.Instances[InstanceID(vmid)] = instance
 
 	for volid := range instance.configDisks {
 		instance.RebuildVolume(host, volid)
@@ -178,7 +187,7 @@ func (instance *Instance) RebuildVolume(host *Node, volid string) error {
 		return err
 	}
 
-	instance.Volumes[volid] = volume
+	instance.Volumes[VolumeID(volid)] = volume
 
 	return nil
 }
@@ -195,7 +204,7 @@ func (instance *Instance) RebuildNet(netid string) error {
 		return nil
 	}
 
-	instance.Nets[uint(idnum)] = netinfo
+	instance.Nets[NetID(idnum)] = netinfo
 
 	return nil
 }
@@ -206,27 +215,21 @@ func (instance *Instance) RebuildDevice(host *Node, deviceid string) error {
 		return fmt.Errorf("%s not found in devices", deviceid)
 	}
 
-	hostDeviceBusID := strings.Split(instanceDevice, ",")[0]
+	hostDeviceBusID := DeviceID(strings.Split(instanceDevice, ",")[0])
 
-	instanceDeviceBusID, err := strconv.ParseUint(strings.TrimPrefix(deviceid, "hostpci"), 10, 64)
+	idbid, err := strconv.ParseUint(strings.TrimPrefix(deviceid, "hostpci"), 10, 64)
 	if err != nil {
 		return err
 	}
+	instanceDeviceBusID := InstanceDeviceID(idbid)
 
 	if DeviceBusIDIsSuperDevice(hostDeviceBusID) {
-		devices := []*Device{}
-		for k, v := range host.Devices {
-			if DeviceBusIDIsSubDevice(k, hostDeviceBusID) {
-				v.Reserved = true
-				devices = append(devices, v)
-			}
+		instance.Devices[InstanceDeviceID(instanceDeviceBusID)] = host.Devices[DeviceID(hostDeviceBusID)]
+		for _, function := range instance.Devices[InstanceDeviceID(instanceDeviceBusID)].Functions {
+			function.Reserved = true
 		}
-		instance.Devices[uint(instanceDeviceBusID)] = devices
 	} else {
-		devices := []*Device{}
-		v := host.Devices[hostDeviceBusID]
-		v.Reserved = true
-		instance.Devices[uint(instanceDeviceBusID)] = devices
+		// sub function assignment not supported yet
 	}
 
 	return nil
