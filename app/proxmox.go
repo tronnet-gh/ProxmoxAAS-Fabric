@@ -45,14 +45,14 @@ func (pve ProxmoxClient) Version() (proxmox.Version, error) {
 // Gets and returns a Node's CPU, memory, swap, and Hardware (PCI) resources
 func (pve ProxmoxClient) Node(nodeName string) (Host, error) {
 	host := Host{}
-	host.Hardware = make(map[string]PVEDevice)
+	host.Hardware = make(map[string]Device)
 
 	node, err := pve.client.Node(context.Background(), nodeName)
 	if err != nil {
 		return host, err
 	}
 
-	devices := []PVEDevice{}
+	devices := []Device{}
 	err = pve.client.Get(context.Background(), fmt.Sprintf("/nodes/%s/hardware/pci", nodeName), &devices)
 	if err != nil {
 		return host, err
