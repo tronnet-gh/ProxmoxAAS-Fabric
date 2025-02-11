@@ -160,6 +160,7 @@ func (instance *Instance) RebuildDevice(host Host, deviceid string) error {
 		hostSuperDevice := host.Hardware[hostDeviceBusID]
 		subDevices := []*HostDevice{}
 		for _, v := range hostSuperDevice.Devices {
+			v.Reserved = true
 			subDevices = append(subDevices, v)
 		}
 		instance.Device[uint(instanceDeviceBusID)] = &InstanceDevice{
@@ -171,11 +172,11 @@ func (instance *Instance) RebuildDevice(host Host, deviceid string) error {
 		if err != nil {
 			return err
 		}
+		v := host.Hardware[hostDeviceBusID].Devices[hostSubdeviceBusID]
+		v.Reserved = true
 		instance.Device[uint(instanceDeviceBusID)] = &InstanceDevice{
-			Device: []*HostDevice{
-				host.Hardware[hostDeviceBusID].Devices[hostSubdeviceBusID],
-			},
-			PCIE: strings.Contains(instanceDevice, "pcie=1"),
+			Device: []*HostDevice{v},
+			PCIE:   strings.Contains(instanceDevice, "pcie=1"),
 		}
 	}
 
