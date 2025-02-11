@@ -14,36 +14,9 @@ type Host struct {
 	Memory   Resource
 	Swap     Resource
 	Hardware map[string]*HostSuperDevice
-	//QEMU     map[uint]*QEMUInstance
-	//LXC      map[uint]*LXCInstance
 	Instance map[uint]*Instance
 	node     *proxmox.Node
 }
-
-/*
-type QEMUInstance struct {
-	Name     string
-	Proctype string
-	Cores    uint64
-	Memory   uint64
-	Drive    map[uint]*Volume
-	Disk     map[uint]*Volume
-	Net      map[uint]*Net
-	Device   map[uint]*InstanceDevice
-	vm       *proxmox.VirtualMachine
-}
-
-type LXCInstance struct {
-	Name     string
-	Cores    uint64
-	Memory   uint64
-	Swap     uint64
-	RootDisk *Volume
-	MP       map[uint]*Volume
-	Net      map[uint]*Net
-	ct       *proxmox.Container
-}
-*/
 
 type InstanceType bool
 
