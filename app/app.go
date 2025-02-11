@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/luthermonson/go-proxmox"
@@ -18,6 +19,7 @@ var client ProxmoxClient
 
 func Run() {
 	gob.Register(proxmox.Client{})
+	gin.SetMode(gin.ReleaseMode)
 
 	configPath := flag.String("config", "config.json", "path to config.json file")
 	flag.Parse()
@@ -33,6 +35,21 @@ func Run() {
 	cluster := Cluster{}
 	cluster.Init(client)
 	cluster.Rebuild()
+
+	// set repeating update for full rebuilds
+	ticker := time.NewTicker(5 * time.Second)
+	channel := make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-channel:
+				return
+			case <-ticker.C:
+				cluster.Rebuild()
+				log.Printf("rebuilt cluster\n")
+			}
+		}
+	}()
 
 	router.GET("/version", func(c *gin.Context) {
 		PVEVersion, err := client.Version()

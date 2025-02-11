@@ -17,7 +17,6 @@ func (cluster *Cluster) Init(pve ProxmoxClient) {
 
 func (cluster *Cluster) Rebuild() error {
 	cluster.Hosts = make(map[string]*Host)
-	//cluster.Instance = make(map[uint]*Instance)
 
 	// get all nodes
 	nodes, err := cluster.pve.Nodes()
