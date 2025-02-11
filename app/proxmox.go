@@ -57,8 +57,8 @@ func (pve ProxmoxClient) Nodes() ([]string, error) {
 }
 
 // Gets a Node's resources but does not recursively expand instances
-func (pve ProxmoxClient) Node(nodeName string) (*Host, error) {
-	host := Host{}
+func (pve ProxmoxClient) Node(nodeName string) (*Node, error) {
+	host := Node{}
 	host.Devices = make(map[string]*Device)
 	host.Instances = make(map[uint]*Instance)
 
@@ -87,7 +87,7 @@ func (pve ProxmoxClient) Node(nodeName string) (*Host, error) {
 }
 
 // Get all VM IDs on specified host
-func (host *Host) VirtualMachines() ([]uint, error) {
+func (host *Node) VirtualMachines() ([]uint, error) {
 	vms, err := host.pvenode.VirtualMachines(context.Background())
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func (host *Host) VirtualMachines() ([]uint, error) {
 }
 
 // Get a VM's CPU, Memory but does not recursively link Devices, Disks, Drives, Nets
-func (host *Host) VirtualMachine(VMID uint) (*Instance, error) {
+func (host *Node) VirtualMachine(VMID uint) (*Instance, error) {
 	instance := Instance{}
 	vm, err := host.pvenode.VirtualMachine(context.Background(), int(VMID))
 	if err != nil {
@@ -135,7 +135,7 @@ func MergeVMDisksAndUnused(vmc *proxmox.VirtualMachineConfig) map[string]string 
 }
 
 // Get all CT IDs on specified host
-func (host *Host) Containers() ([]uint, error) {
+func (host *Node) Containers() ([]uint, error) {
 	cts, err := host.pvenode.Containers(context.Background())
 	if err != nil {
 		return nil, err
@@ -148,7 +148,7 @@ func (host *Host) Containers() ([]uint, error) {
 }
 
 // Get a CT's CPU, Memory, Swap but does not recursively link Devices, Disks, Drives, Nets
-func (host *Host) Container(VMID uint) (*Instance, error) {
+func (host *Node) Container(VMID uint) (*Instance, error) {
 	instance := Instance{}
 	ct, err := host.pvenode.Container(context.Background(), int(VMID))
 	if err != nil {
@@ -185,31 +185,32 @@ func MergeCTDisksAndUnused(cc *proxmox.ContainerConfig) map[string]string {
 	return mergedDisks
 }
 
-// get volume fornmat, size, volumeid, and storageid from instance volume data string (eg: local:100/vm-100-disk-0.raw ... )
-func GetVolumeInfo(host *Host, volume string) (*Volume, string, string, error) {
+// get volume format, size, volumeid, and storageid from instance volume data string (eg: local:100/vm-100-disk-0.raw ... )
+func GetVolumeInfo(host *Node, volume string) (*Volume, error) {
 	volumeData := Volume{}
 
 	storageID := strings.Split(volume, ":")[0]
 	volumeID := strings.Split(volume, ",")[0]
 	storage, err := host.pvenode.Storage(context.Background(), storageID)
 	if err != nil {
-		return &volumeData, volumeID, storageID, nil
+		return &volumeData, nil
 	}
 
 	content, err := storage.GetContent(context.Background())
 	if err != nil {
-		return &volumeData, volumeID, storageID, nil
+		return &volumeData, nil
 	}
 
 	for _, c := range content {
 		if c.Volid == volumeID {
+			volumeData.Storage = storageID
 			volumeData.Format = c.Format
 			volumeData.Size = uint64(c.Size)
 			volumeData.Volid = volumeID
 		}
 	}
 
-	return &volumeData, volumeID, storageID, nil
+	return &volumeData, nil
 }
 
 func GetNetInfo(net string) (*Net, error) {

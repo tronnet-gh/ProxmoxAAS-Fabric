@@ -9,17 +9,17 @@ import (
 type Cluster struct {
 	lock  sync.Mutex
 	pve   ProxmoxClient
-	Hosts map[string]*Host
+	Nodes map[string]*Node
 }
 
-type Host struct {
+type Node struct {
 	lock      sync.Mutex
-	Name      string
-	Cores     uint64
-	Memory    uint64
-	Swap      uint64
-	Devices   map[string]*Device
-	Instances map[uint]*Instance
+	Name      string             `json:"name"`
+	Cores     uint64             `json:"cores"`
+	Memory    uint64             `json:"memory"`
+	Swap      uint64             `json:"swap"`
+	Devices   map[string]*Device `json:"devices"`
+	Instances map[uint]*Instance `json:"instances"`
 	pvenode   *proxmox.Node
 }
 
@@ -32,15 +32,15 @@ const (
 
 type Instance struct {
 	lock           sync.Mutex
-	Type           InstanceType
-	Name           string
-	Proctype       string
-	Cores          uint64
-	Memory         uint64
-	Swap           uint64
-	Volumes        map[string]*Volume
-	Nets           map[uint]*Net
-	Devices        map[uint][]*Device
+	Type           InstanceType       `json:"type"`
+	Name           string             `json:"name"`
+	Proctype       string             `json:"cpu"`
+	Cores          uint64             `json:"cores"`
+	Memory         uint64             `json:"memory"`
+	Swap           uint64             `json:"swap"`
+	Volumes        map[string]*Volume `json:"volumes"`
+	Nets           map[uint]*Net      `json:"nets"`
+	Devices        map[uint][]*Device `json:"devices"`
 	pveconfig      interface{}
 	configDisks    map[string]string
 	configNets     map[string]string
@@ -48,15 +48,15 @@ type Instance struct {
 }
 
 type Volume struct {
-	Path   string
-	Format string
-	Size   uint64
-	Volid  string
+	Storage string `json:"storage"`
+	Format  string `json:"format"`
+	Size    uint64 `json:"size"`
+	Volid   string `json:"volid"`
 }
 
 type Net struct {
-	Rate uint64
-	VLAN uint64
+	Rate uint64 `json:"rate"`
+	VLAN uint64 `json:"vlan"`
 }
 
 type Device struct {
@@ -65,5 +65,5 @@ type Device struct {
 	VendorName          string `json:"vendor_name"`
 	SubsystemDeviceName string `json:"subsystem_device_name"`
 	SubsystemVendorName string `json:"subsystem_vendor_name"`
-	Reserved            bool
+	Reserved            bool   `json:"reserved"`
 }

@@ -67,56 +67,116 @@ func Run() {
 	})
 
 	router.GET("/nodes/:node", func(c *gin.Context) {
-		node := c.Param("node")
+		nodeid := c.Param("node")
 
-		host, err := cluster.GetHost(node)
+		node, err := cluster.GetNode(nodeid)
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		} else {
-			c.JSON(http.StatusOK, gin.H{"node": host})
+			c.JSON(http.StatusOK, gin.H{"node": node})
 			return
 		}
 	})
 
 	router.GET("/nodes/:node/devices", func(c *gin.Context) {
-		node := c.Param("node")
+		nodeid := c.Param("node")
 
-		host, err := cluster.GetHost(node)
+		node, err := cluster.GetNode(nodeid)
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		} else {
-			c.JSON(http.StatusOK, gin.H{"devices": host.Devices})
+			c.JSON(http.StatusOK, gin.H{"devices": node.Devices})
 			return
 		}
 	})
 
-	router.GET("/nodes/:node/instances/:instance", func(c *gin.Context) {
-		node := c.Param("node")
-		vmid, err := strconv.ParseUint(c.Param("instance"), 10, 64)
+	router.GET("/nodes/:node/instances/:vmid", func(c *gin.Context) {
+		nodeid := c.Param("node")
+		vmid, err := strconv.ParseUint(c.Param("vmid"), 10, 64)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("%s could not be converted to vmid (uint)", c.Param("instance"))})
 			return
 		}
 
-		host, err := cluster.GetHost(node)
+		node, err := cluster.GetNode(nodeid)
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("vmid %s not found in cluster", node)})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		} else {
-			instance, err := host.GetInstance(uint(vmid))
+			instance, err := node.GetInstance(uint(vmid))
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("%d not found in %s", vmid, node)})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			} else {
 				c.JSON(http.StatusOK, gin.H{"instance": instance})
 				return
 			}
 		}
+	})
+
+	router.POST("/sync", func(c *gin.Context) {
+		go func() {
+			start := time.Now()
+			log.Printf("Starting cluster sync\n")
+			cluster.Sync()
+			log.Printf("Synced cluster in %fs\n", time.Since(start).Seconds())
+		}()
+	})
+
+	router.POST("/nodes/:node/sync", func(c *gin.Context) {
+		nodeid := c.Param("node")
+		go func() {
+			start := time.Now()
+			log.Printf("Starting %s sync\n", nodeid)
+			err := cluster.RebuildHost(nodeid)
+			if err != nil {
+				log.Printf("Failed to sync %s: %s", nodeid, err.Error())
+				return
+			} else {
+				log.Printf("Synced %s in %fs\n", nodeid, time.Since(start).Seconds())
+				return
+			}
+		}()
+	})
+
+	router.POST("/nodes/:node/instances/:vmid/sync", func(c *gin.Context) {
+		nodeid := c.Param("node")
+		vmid, err := strconv.ParseUint(c.Param("vmid"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("%s could not be converted to vmid (uint)", c.Param("instance"))})
+			return
+		}
+
+		go func() {
+			start := time.Now()
+			log.Printf("Starting %s.%d sync\n", nodeid, vmid)
+
+			node, err := cluster.GetNode(nodeid)
+			if err != nil {
+				log.Printf("Failed to sync %s.%d: %s", nodeid, vmid, err.Error())
+				return
+			}
+
+			instance, err := node.GetInstance(uint(vmid))
+			if err != nil {
+				log.Printf("Failed to sync %s.%d: %s", nodeid, vmid, err.Error())
+				return
+			}
+
+			err = node.RebuildInstance(instance.Type, uint(vmid))
+			if err != nil {
+				log.Printf("Failed to sync %s.%d: %s", nodeid, vmid, err.Error())
+				return
+			} else {
+				log.Printf("Synced %s.%d in %fs\n", nodeid, vmid, time.Since(start).Seconds())
+				return
+			}
+		}()
 	})
 
 	router.Run("0.0.0.0:" + strconv.Itoa(config.ListenPort))

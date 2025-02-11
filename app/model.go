@@ -15,7 +15,7 @@ func (cluster *Cluster) Sync() error {
 	cluster.lock.Lock()
 	defer cluster.lock.Unlock()
 
-	cluster.Hosts = make(map[string]*Host)
+	cluster.Nodes = make(map[string]*Node)
 
 	// get all nodes
 	nodes, err := cluster.pve.Nodes()
@@ -35,8 +35,8 @@ func (cluster *Cluster) Sync() error {
 }
 
 // get a node in the cluster
-func (cluster *Cluster) GetHost(hostName string) (*Host, error) {
-	host_ch := make(chan *Host)
+func (cluster *Cluster) GetNode(hostName string) (*Node, error) {
+	host_ch := make(chan *Node)
 	err_ch := make(chan error)
 
 	go func() {
@@ -44,21 +44,23 @@ func (cluster *Cluster) GetHost(hostName string) (*Host, error) {
 		cluster.lock.Lock()
 		defer cluster.lock.Unlock()
 		// get host
-		host, ok := cluster.Hosts[hostName]
+		host, ok := cluster.Nodes[hostName]
 		if !ok {
 			host_ch <- nil
 			err_ch <- fmt.Errorf("%s not in cluster", hostName)
-		}
-		// aquire host lock to wait in case of a concurrent write
-		host.lock.Lock()
-		defer host.lock.Unlock()
+		} else {
+			// aquire host lock to wait in case of a concurrent write
+			host.lock.Lock()
+			defer host.lock.Unlock()
 
-		host_ch <- host
-		err_ch <- nil
+			host_ch <- host
+			err_ch <- nil
+		}
 	}()
 
 	host := <-host_ch
 	err := <-err_ch
+
 	return host, err
 }
 
@@ -72,7 +74,7 @@ func (cluster *Cluster) RebuildHost(hostName string) error {
 	host.lock.Lock()
 	defer host.lock.Unlock()
 
-	cluster.Hosts[hostName] = host
+	cluster.Nodes[hostName] = host
 
 	// get node's VMs
 	vms, err := host.VirtualMachines()
@@ -81,7 +83,7 @@ func (cluster *Cluster) RebuildHost(hostName string) error {
 
 	}
 	for _, vmid := range vms {
-		err := host.RebuildVM(vmid)
+		err := host.RebuildInstance(VM, vmid)
 		if err != nil {
 			return err
 		}
@@ -93,7 +95,7 @@ func (cluster *Cluster) RebuildHost(hostName string) error {
 		return err
 	}
 	for _, vmid := range cts {
-		err := host.RebuildCT(vmid)
+		err := host.RebuildInstance(CT, vmid)
 		if err != nil {
 			return err
 		}
@@ -102,7 +104,7 @@ func (cluster *Cluster) RebuildHost(hostName string) error {
 	return nil
 }
 
-func (host *Host) GetInstance(vmid uint) (*Instance, error) {
+func (host *Node) GetInstance(vmid uint) (*Instance, error) {
 	instance_ch := make(chan *Instance)
 	err_ch := make(chan error)
 
@@ -115,13 +117,14 @@ func (host *Host) GetInstance(vmid uint) (*Instance, error) {
 		if !ok {
 			instance_ch <- nil
 			err_ch <- fmt.Errorf("vmid %d not in host %s", vmid, host.Name)
-		}
-		// aquire instance lock to wait in case of a concurrent write
-		instance.lock.Lock()
-		defer instance.lock.Unlock()
+		} else {
+			// aquire instance lock to wait in case of a concurrent write
+			instance.lock.Lock()
+			defer instance.lock.Unlock()
 
-		instance_ch <- instance
-		err_ch <- nil
+			instance_ch <- instance
+			err_ch <- nil
+		}
 	}()
 
 	instance := <-instance_ch
@@ -129,10 +132,21 @@ func (host *Host) GetInstance(vmid uint) (*Instance, error) {
 	return instance, err
 }
 
-func (host *Host) RebuildVM(vmid uint) error {
-	instance, err := host.VirtualMachine(vmid)
-	if err != nil {
-		return err
+func (host *Node) RebuildInstance(instancetype InstanceType, vmid uint) error {
+	var instance *Instance
+	if instancetype == VM {
+		var err error
+		instance, err = host.VirtualMachine(vmid)
+		if err != nil {
+			return err
+		}
+	} else if instancetype == CT {
+		var err error
+		instance, err = host.Container(vmid)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	// aquire lock on instance, release on return
@@ -156,33 +170,10 @@ func (host *Host) RebuildVM(vmid uint) error {
 	return nil
 }
 
-func (host *Host) RebuildCT(vmid uint) error {
-	instance, err := host.Container(vmid)
-	if err != nil {
-		return err
-	}
-
-	// aquire lock on instance, release on return
-	instance.lock.Lock()
-	defer instance.lock.Unlock()
-
-	host.Instances[vmid] = instance
-
-	for volid := range instance.configDisks {
-		instance.RebuildVolume(host, volid)
-	}
-
-	for netid := range instance.configNets {
-		instance.RebuildNet(netid)
-	}
-
-	return nil
-}
-
-func (instance *Instance) RebuildVolume(host *Host, volid string) error {
+func (instance *Instance) RebuildVolume(host *Node, volid string) error {
 	volumeDataString := instance.configDisks[volid]
 
-	volume, _, _, err := GetVolumeInfo(host, volumeDataString)
+	volume, err := GetVolumeInfo(host, volumeDataString)
 	if err != nil {
 		return err
 	}
@@ -209,7 +200,7 @@ func (instance *Instance) RebuildNet(netid string) error {
 	return nil
 }
 
-func (instance *Instance) RebuildDevice(host *Host, deviceid string) error {
+func (instance *Instance) RebuildDevice(host *Node, deviceid string) error {
 	instanceDevice, ok := instance.configHostPCIs[deviceid]
 	if !ok { // if device does not exist
 		return fmt.Errorf("%s not found in devices", deviceid)
