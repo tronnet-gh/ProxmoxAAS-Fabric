@@ -15,14 +15,6 @@ type ProxmoxClient struct {
 	client *proxmox.Client
 }
 
-type PVEDevice struct {
-	BusID               string `json:"id"`
-	DeviceName          string `json:"device_name"`
-	VendorName          string `json:"vendor_name"`
-	SubsystemDeviceName string `json:"subsystem_device_name"`
-	SubsystemVendorName string `json:"subsystem_vendor_name"`
-}
-
 func NewClient(token string, secret string) ProxmoxClient {
 	HTTPClient := http.Client{
 		Transport: &http.Transport{
@@ -67,44 +59,22 @@ func (pve ProxmoxClient) Nodes() ([]string, error) {
 // Gets a Node's resources but does not recursively expand instances
 func (pve ProxmoxClient) Node(nodeName string) (Host, error) {
 	host := Host{}
-	host.Hardware = make(map[string]*HostSuperDevice)
-	host.Instance = make(map[uint]*Instance)
+	host.Devices = make(map[string]*Device)
+	host.Instances = make(map[uint]*Instance)
 
 	node, err := pve.client.Node(context.Background(), nodeName)
 	if err != nil {
 		return host, err
 	}
 
-	devices := []PVEDevice{}
+	devices := []Device{}
 	err = pve.client.Get(context.Background(), fmt.Sprintf("/nodes/%s/hardware/pci", nodeName), &devices)
 	if err != nil {
 		return host, err
 	}
 
-	// map supersystem devices to each contained subsystem
-	// eg 0000:00:05 -> [0000:00:05.0, 0000:00:05.1, 0000:00:05.2, 0000:00:05.3, ...]
 	for _, device := range devices {
-		SupersystemID, SubsystemID, err := SplitDeviceBusID(device.BusID)
-		if err != nil {
-			return host, err
-		}
-
-		if host.Hardware[SupersystemID] == nil {
-			host.Hardware[SupersystemID] = &HostSuperDevice{
-				BusID:      SupersystemID,
-				DeviceName: device.DeviceName,
-				VendorName: device.VendorName,
-				Devices:    make(map[string]*HostDevice),
-			}
-		}
-
-		if !DeviceBusIDIsSuperDevice(device.BusID) {
-			host.Hardware[SupersystemID].Devices[SubsystemID] = &HostDevice{
-				SubID:         SubsystemID,
-				SubDeviceName: device.SubsystemDeviceName,
-				SubVendorName: device.SubsystemVendorName,
-			}
-		}
+		host.Devices[device.BusID] = &device
 	}
 
 	host.Name = node.Name
@@ -149,9 +119,9 @@ func (host Host) VirtualMachine(VMID uint) (Instance, error) {
 	instance.Proctype = vm.VirtualMachineConfig.CPU
 	instance.Cores = uint64(vm.VirtualMachineConfig.Cores)
 	instance.Memory = uint64(vm.VirtualMachineConfig.Memory) * MiB
-	instance.Volume = make(map[string]*Volume)
-	instance.Net = make(map[uint]*Net)
-	instance.Device = make(map[uint]*InstanceDevice)
+	instance.Volumes = make(map[string]*Volume)
+	instance.Nets = make(map[uint]*Net)
+	instance.Devices = make(map[uint][]*Device)
 
 	return instance, nil
 }
@@ -197,8 +167,8 @@ func (host Host) Container(VMID uint) (Instance, error) {
 	instance.Cores = uint64(ct.ContainerConfig.Cores)
 	instance.Memory = uint64(ct.ContainerConfig.Memory) * MiB
 	instance.Swap = uint64(ct.ContainerConfig.Swap) * MiB
-	instance.Volume = make(map[string]*Volume)
-	instance.Net = make(map[uint]*Net)
+	instance.Volumes = make(map[string]*Volume)
+	instance.Nets = make(map[uint]*Net)
 
 	return instance, nil
 }

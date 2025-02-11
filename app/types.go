@@ -9,20 +9,20 @@ type Resource struct {
 }
 
 type Host struct {
-	Name     string
-	Cores    Resource
-	Memory   Resource
-	Swap     Resource
-	Hardware map[string]*HostSuperDevice
-	Instance map[uint]*Instance
-	node     *proxmox.Node
+	Name      string
+	Cores     Resource
+	Memory    Resource
+	Swap      Resource
+	Devices   map[string]*Device
+	Instances map[uint]*Instance
+	node      *proxmox.Node
 }
 
-type InstanceType bool
+type InstanceType string
 
 const (
-	VM InstanceType = true
-	CT InstanceType = false
+	VM InstanceType = "VM"
+	CT InstanceType = "CT"
 )
 
 type Instance struct {
@@ -32,9 +32,9 @@ type Instance struct {
 	Cores          uint64
 	Memory         uint64
 	Swap           uint64
-	Volume         map[string]*Volume
-	Net            map[uint]*Net
-	Device         map[uint]*InstanceDevice
+	Volumes        map[string]*Volume
+	Nets           map[uint]*Net
+	Devices        map[uint][]*Device
 	config         interface{}
 	configDisks    map[string]string
 	configNets     map[string]string
@@ -54,21 +54,11 @@ type Net struct {
 	VLAN uint64
 }
 
-type InstanceDevice struct {
-	Device []*HostDevice
-	PCIE   bool
-}
-
-type HostSuperDevice struct {
-	BusID      string
-	DeviceName string
-	VendorName string
-	Devices    map[string]*HostDevice
-}
-
-type HostDevice struct {
-	SubID         string
-	SubDeviceName string
-	SubVendorName string
-	Reserved      bool
+type Device struct {
+	BusID               string `json:"id"`
+	DeviceName          string `json:"device_name"`
+	VendorName          string `json:"vendor_name"`
+	SubsystemDeviceName string `json:"subsystem_device_name"`
+	SubsystemVendorName string `json:"subsystem_vendor_name"`
+	Reserved            bool
 }

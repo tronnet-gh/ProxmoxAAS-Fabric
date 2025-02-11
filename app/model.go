@@ -9,7 +9,6 @@ import (
 type Cluster struct {
 	pve   ProxmoxClient
 	Hosts map[string]*Host
-	//Instance map[uint]*Instance
 }
 
 func (cluster *Cluster) Init(pve ProxmoxClient) {
@@ -77,7 +76,7 @@ func (host *Host) RebuildVM(vmid uint) error {
 		return err
 	}
 
-	host.Instance[vmid] = &instance
+	host.Instances[vmid] = &instance
 
 	for volid := range instance.configDisks {
 		instance.RebuildVolume(host, volid)
@@ -100,7 +99,7 @@ func (host *Host) RebuildCT(vmid uint) error {
 		return err
 	}
 
-	host.Instance[vmid] = &instance
+	host.Instances[vmid] = &instance
 
 	for volid := range instance.configDisks {
 		instance.RebuildVolume(host, volid)
@@ -121,7 +120,7 @@ func (instance *Instance) RebuildVolume(host *Host, volid string) error {
 		return err
 	}
 
-	instance.Volume[volid] = &volume
+	instance.Volumes[volid] = &volume
 
 	return nil
 }
@@ -138,7 +137,7 @@ func (instance *Instance) RebuildNet(netid string) error {
 		return nil
 	}
 
-	instance.Net[uint(idnum)] = &netinfo
+	instance.Nets[uint(idnum)] = &netinfo
 
 	return nil
 }
@@ -157,113 +156,20 @@ func (instance *Instance) RebuildDevice(host Host, deviceid string) error {
 	}
 
 	if DeviceBusIDIsSuperDevice(hostDeviceBusID) {
-		hostSuperDevice := host.Hardware[hostDeviceBusID]
-		subDevices := []*HostDevice{}
-		for _, v := range hostSuperDevice.Devices {
-			v.Reserved = true
-			subDevices = append(subDevices, v)
+		devices := []*Device{}
+		for k, v := range host.Devices {
+			if DeviceBusIDIsSubDevice(k, hostDeviceBusID) {
+				v.Reserved = true
+				devices = append(devices, v)
+			}
 		}
-		instance.Device[uint(instanceDeviceBusID)] = &InstanceDevice{
-			Device: subDevices,
-			PCIE:   strings.Contains(instanceDevice, "pcie=1"),
-		}
+		instance.Devices[uint(instanceDeviceBusID)] = devices
 	} else {
-		_, hostSubdeviceBusID, err := SplitDeviceBusID(hostDeviceBusID)
-		if err != nil {
-			return err
-		}
-		v := host.Hardware[hostDeviceBusID].Devices[hostSubdeviceBusID]
+		devices := []*Device{}
+		v := host.Devices[hostDeviceBusID]
 		v.Reserved = true
-		instance.Device[uint(instanceDeviceBusID)] = &InstanceDevice{
-			Device: []*HostDevice{v},
-			PCIE:   strings.Contains(instanceDevice, "pcie=1"),
-		}
+		instance.Devices[uint(instanceDeviceBusID)] = devices
 	}
 
 	return nil
-}
-
-func (cluster Cluster) String() string {
-	r := ""
-	for _, host := range cluster.Hosts {
-		r += host.String()
-	}
-	return r
-}
-
-func (host Host) String() string {
-	r := fmt.Sprintf("%s\n\tCores:\t%s\n\tMemory:\t%s\n\tSwap:\t%s\n", host.Name, host.Cores, host.Memory, host.Swap)
-
-	r += "\tHardware:\n"
-
-	for _, superdevice := range host.Hardware {
-		r += fmt.Sprintf("%s\n", superdevice)
-	}
-
-	r += "\tInstances:\n"
-
-	for vmid, vm := range host.Instance {
-		r += fmt.Sprintf("\t\t%d: %s\n", vmid, vm)
-	}
-
-	return r
-}
-
-func (r Resource) String() string {
-	return fmt.Sprintf("Totl: %d, Rsrv: %d, Free: %d", r.Total, r.Reserved, r.Free)
-}
-
-func (superdevice HostSuperDevice) String() string {
-	s := fmt.Sprintf("\t\t%s: %s %s -> ", superdevice.BusID, superdevice.VendorName, superdevice.DeviceName)
-	numunused := 0
-	for _, device := range superdevice.Devices {
-		if device.Reserved {
-			s += fmt.Sprintf("%s:(Rsrv %t, %s %s: %s %s)", device.SubID, device.Reserved, superdevice.VendorName, device.SubVendorName, superdevice.DeviceName, device.SubDeviceName)
-		} else {
-			numunused++
-		}
-	}
-	s += fmt.Sprintf("+%d unreserved subdevices", numunused)
-	return s
-}
-
-func (i Instance) String() string {
-	if i.Type == VM {
-		r := fmt.Sprintf("VM, Name: %s, Proctype: %s, Cores: %d, Memory: %d\n", i.Name, i.Proctype, i.Cores, i.Memory)
-		for k, v := range i.Volume {
-			r += fmt.Sprintf("\t\t\t%s: %s\n", k, v)
-		}
-		for k, v := range i.Net {
-			r += fmt.Sprintf("\t\t\tnet%d: %s\n", k, v)
-		}
-		for k, v := range i.Device {
-			r += fmt.Sprintf("\t\t\thostpci%d: %s\n", k, v)
-		}
-		return r
-	} else {
-		r := fmt.Sprintf("CT, Name: %s, Cores: %d, Memory: %d, Swap: %d\n", i.Name, i.Cores, i.Memory, i.Swap)
-		for k, v := range i.Volume {
-			r += fmt.Sprintf("\t\t\t%s: %s\n", k, v)
-		}
-		for k, v := range i.Net {
-			r += fmt.Sprintf("\t\t\tnet%d: %s\n", k, v)
-		}
-		return r
-	}
-}
-
-func (v Volume) String() string {
-	return fmt.Sprintf("id: %s, format: %s, size: %d", v.Volid, v.Format, v.Size)
-}
-
-func (n Net) String() string {
-	return fmt.Sprintf("rate: %d, vlan: %d", n.Rate, n.VLAN)
-}
-
-func (d InstanceDevice) String() string {
-	r := ""
-	for _, v := range d.Device {
-		r += fmt.Sprintf("%s:%s ", v.SubVendorName, v.SubDeviceName)
-	}
-	return r
 }

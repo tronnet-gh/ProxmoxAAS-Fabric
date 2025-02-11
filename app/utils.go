@@ -2,7 +2,6 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -38,20 +37,17 @@ func GetConfig(configPath string) Config {
 // returns if a device pcie bus id is a super device or subsystem device
 //
 // subsystem devices always has the format xxxx:yy.z, whereas super devices have the format xxxx:yy
+//
+// returns true if BusID has format xxxx:yy
 func DeviceBusIDIsSuperDevice(BusID string) bool {
 	return !strings.ContainsRune(BusID, '.')
 }
 
-// splits a device pcie bus id into super device and subsystem device IDs if possible
-func SplitDeviceBusID(BusID string) (string, string, error) {
-	if DeviceBusIDIsSuperDevice(BusID) {
-		return BusID, "", nil
-	} else {
-		x := strings.Split(BusID, ".")
-		if len(x) != 2 {
-			return "", "", fmt.Errorf("BusID: %s contained more than one '.'", BusID)
-		} else {
-			return x[0], x[1], nil
-		}
-	}
+// returns if a device pcie bus id is a subdevice of specified super device
+//
+// subsystem devices always has the format xxxx:yy.z, whereas super devices have the format xxxx:yy
+//
+// returns true if BusID has prefix SuperDeviceBusID and SuperDeviceBusID is a Super Device
+func DeviceBusIDIsSubDevice(BusID string, SuperDeviceBusID string) bool {
+	return DeviceBusIDIsSuperDevice(SuperDeviceBusID) && strings.HasPrefix(BusID, SuperDeviceBusID)
 }
