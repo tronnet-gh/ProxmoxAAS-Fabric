@@ -19,6 +19,7 @@ type Config struct {
 			Secret string `json:"uuid"`
 		}
 	}
+	ReloadInterval int `json:"reloadInterval"`
 }
 
 func GetConfig(configPath string) Config {

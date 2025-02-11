@@ -1,21 +1,26 @@
 package app
 
-import "github.com/luthermonson/go-proxmox"
+import (
+	"sync"
 
-type Resource struct {
-	Reserved uint64
-	Free     uint64
-	Total    uint64
+	"github.com/luthermonson/go-proxmox"
+)
+
+type Cluster struct {
+	lock  sync.Mutex
+	pve   ProxmoxClient
+	Hosts map[string]*Host
 }
 
 type Host struct {
+	lock      sync.Mutex
 	Name      string
 	Cores     Resource
 	Memory    Resource
 	Swap      Resource
 	Devices   map[string]*Device
 	Instances map[uint]*Instance
-	node      *proxmox.Node
+	pvenode   *proxmox.Node
 }
 
 type InstanceType string
@@ -26,6 +31,7 @@ const (
 )
 
 type Instance struct {
+	lock           sync.Mutex
 	Type           InstanceType
 	Name           string
 	Proctype       string
@@ -35,11 +41,16 @@ type Instance struct {
 	Volumes        map[string]*Volume
 	Nets           map[uint]*Net
 	Devices        map[uint][]*Device
-	config         interface{}
+	pveconfig      interface{}
 	configDisks    map[string]string
 	configNets     map[string]string
 	configHostPCIs map[string]string
-	proxmox.ContainerInterface
+}
+
+type Resource struct {
+	Reserved uint64
+	Free     uint64
+	Total    uint64
 }
 
 type Volume struct {

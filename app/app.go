@@ -34,10 +34,14 @@ func Run() {
 
 	cluster := Cluster{}
 	cluster.Init(client)
-	cluster.Rebuild()
+	start := time.Now()
+	log.Printf("Starting cluster sync\n")
+	cluster.Sync()
+	log.Printf("Synced cluster in %fs\n", time.Since(start).Seconds())
 
 	// set repeating update for full rebuilds
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(time.Duration(config.ReloadInterval) * time.Second)
+	log.Printf("Initialized cluster sync interval of %ds", config.ReloadInterval)
 	channel := make(chan bool)
 	go func() {
 		for {
@@ -45,8 +49,10 @@ func Run() {
 			case <-channel:
 				return
 			case <-ticker.C:
-				cluster.Rebuild()
-				log.Printf("rebuilt cluster\n")
+				start := time.Now()
+				log.Printf("Starting cluster sync\n")
+				cluster.Sync()
+				log.Printf("Synced cluster in %fs\n", time.Since(start).Seconds())
 			}
 		}
 	}()
@@ -62,34 +68,38 @@ func Run() {
 
 	router.GET("/nodes/:node", func(c *gin.Context) {
 		node := c.Param("node")
-		Host, ok := cluster.Hosts[node]
-		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("%s not found in cluster", node)})
+
+		host, err := cluster.GetHost(node)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 			return
 		} else {
-			c.JSON(http.StatusOK, gin.H{"node": Host})
+			c.JSON(http.StatusOK, gin.H{"node": host})
 			return
 		}
 	})
 
 	router.GET("/nodes/:node/instances/:instance", func(c *gin.Context) {
-		host := c.Param("node")
+		node := c.Param("node")
 		vmid, err := strconv.ParseUint(c.Param("instance"), 10, 64)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("%s could not be converted to vmid (uint)", c.Param("instance"))})
 			return
 		}
-		Node, ok := cluster.Hosts[host]
-		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("vmid %s not found in cluster", host)})
+
+		host, err := cluster.GetHost(node)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("vmid %s not found in cluster", node)})
 			return
 		} else {
-			Instance, ok := Node.Instances[uint(vmid)]
-			if !ok {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("%d not found in %s", vmid, host)})
+			instance, err := host.GetInstance(uint(vmid))
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("%d not found in %s", vmid, node)})
 				return
 			} else {
-				c.JSON(http.StatusOK, gin.H{"instance": Instance})
+				c.JSON(http.StatusOK, gin.H{"instance": instance})
 				return
 			}
 		}
