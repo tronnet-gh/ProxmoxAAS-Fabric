@@ -1,0 +1,13 @@
+{
+    "listenPort": 80,
+    "pve": {
+        "url": "http://<proxmox host>/api2/json",
+        "token": {
+            "user": "proxmoxaas-api",
+            "realm": "pam",
+            "id": "token",
+            "uuid": "<secret-uuid>"
+        }
+    },
+    "rebuildInterval": 60
+}

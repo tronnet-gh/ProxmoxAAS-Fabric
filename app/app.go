@@ -80,6 +80,20 @@ func Run() {
 		}
 	})
 
+	router.GET("/nodes/:node/devices", func(c *gin.Context) {
+		node := c.Param("node")
+
+		host, err := cluster.GetHost(node)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+			return
+		} else {
+			c.JSON(http.StatusOK, gin.H{"devices": host.Devices})
+			return
+		}
+	})
+
 	router.GET("/nodes/:node/instances/:instance", func(c *gin.Context) {
 		node := c.Param("node")
 		vmid, err := strconv.ParseUint(c.Param("instance"), 10, 64)
