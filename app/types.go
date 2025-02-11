@@ -15,9 +15,9 @@ type Cluster struct {
 type Host struct {
 	lock      sync.Mutex
 	Name      string
-	Cores     Resource
-	Memory    Resource
-	Swap      Resource
+	Cores     uint64
+	Memory    uint64
+	Swap      uint64
 	Devices   map[string]*Device
 	Instances map[uint]*Instance
 	pvenode   *proxmox.Node
@@ -45,12 +45,6 @@ type Instance struct {
 	configDisks    map[string]string
 	configNets     map[string]string
 	configHostPCIs map[string]string
-}
-
-type Resource struct {
-	Reserved uint64
-	Free     uint64
-	Total    uint64
 }
 
 type Volume struct {

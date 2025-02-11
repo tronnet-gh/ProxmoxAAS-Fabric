@@ -12,6 +12,7 @@ const MiB = 1024 * 1024
 type Config struct {
 	ListenPort int `json:"listenPort"`
 	PVE        struct {
+		URL   string `json:"url"`
 		Token struct {
 			USER   string `json:"user"`
 			REALM  string `json:"realm"`

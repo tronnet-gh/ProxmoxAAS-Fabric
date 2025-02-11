@@ -15,7 +15,7 @@ type ProxmoxClient struct {
 	client *proxmox.Client
 }
 
-func NewClient(token string, secret string) ProxmoxClient {
+func NewClient(url string, token string, secret string) ProxmoxClient {
 	HTTPClient := http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
@@ -24,7 +24,7 @@ func NewClient(token string, secret string) ProxmoxClient {
 		},
 	}
 
-	client := proxmox.NewClient("https://pve.tronnet.net/api2/json",
+	client := proxmox.NewClient(url,
 		proxmox.WithHTTPClient(&HTTPClient),
 		proxmox.WithAPIToken(token, secret),
 	)
@@ -78,9 +78,9 @@ func (pve ProxmoxClient) Node(nodeName string) (*Host, error) {
 	}
 
 	host.Name = node.Name
-	host.Cores.Total = uint64(node.CPUInfo.CPUs)
-	host.Memory.Total = uint64(node.Memory.Total)
-	host.Swap.Total = uint64(node.Swap.Total)
+	host.Cores = uint64(node.CPUInfo.CPUs)
+	host.Memory = uint64(node.Memory.Total)
+	host.Swap = uint64(node.Swap.Total)
 	host.pvenode = node
 
 	return &host, err

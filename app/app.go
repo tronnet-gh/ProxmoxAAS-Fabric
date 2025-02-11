@@ -28,7 +28,7 @@ func Run() {
 	log.Println("Initialized config from " + *configPath)
 
 	token := fmt.Sprintf(`%s@%s!%s`, config.PVE.Token.USER, config.PVE.Token.REALM, config.PVE.Token.ID)
-	client = NewClient(token, config.PVE.Token.Secret)
+	client = NewClient(config.PVE.URL, token, config.PVE.Token.Secret)
 
 	router := gin.Default()
 
