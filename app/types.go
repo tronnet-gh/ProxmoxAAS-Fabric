@@ -42,7 +42,7 @@ type Instance struct {
 	Volumes        map[VolumeID]*Volume         `json:"volumes"`
 	Nets           map[NetID]*Net               `json:"nets"`
 	Devices        map[InstanceDeviceID]*Device `json:"devices"`
-	pveconfig      interface{}
+	pveconfig      any
 	configDisks    map[string]string
 	configNets     map[string]string
 	configHostPCIs map[string]string
