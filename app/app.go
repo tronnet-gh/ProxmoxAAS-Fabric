@@ -25,7 +25,7 @@ func Run() {
 	flag.Parse()
 
 	config := GetConfig(*configPath)
-	log.Println("Initialized config from " + *configPath)
+	log.Printf("Initialized config from %s", *configPath)
 
 	token := fmt.Sprintf(`%s@%s!%s`, config.PVE.Token.USER, config.PVE.Token.REALM, config.PVE.Token.ID)
 	client = NewClient(config.PVE.URL, token, config.PVE.Token.Secret)

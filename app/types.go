@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/luthermonson/go-proxmox"
@@ -87,4 +88,25 @@ type Function struct {
 	FunctionName string     `json:"subsystem_device_name"`
 	VendorName   string     `json:"subsystem_vendor_name"`
 	Reserved     bool       `json:"reserved"`
+}
+
+func (cluster *Cluster) String() string {
+	s := "cluster:\n"
+	for _, node := range cluster.Nodes {
+		s += fmt.Sprintf("\t%s", node)
+	}
+	return s
+}
+
+func (node *Node) String() string {
+	s := fmt.Sprintf("%s:\n", node.Name)
+	for vmid, instance := range node.Instances {
+		s += fmt.Sprintf("\t\t%d:%s\n", vmid, instance)
+	}
+	return s
+}
+
+func (instance *Instance) String() string {
+	s := fmt.Sprintf("%s", instance.Name)
+	return s
 }

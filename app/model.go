@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -26,8 +27,9 @@ func (cluster *Cluster) Sync() error {
 	for _, hostName := range nodes {
 		// rebuild node
 		err := cluster.RebuildHost(hostName)
-		if err != nil {
-			return err
+		if err != nil { // if an error was encountered, continue and log the error
+			log.Print(err.Error())
+			continue
 		}
 	}
 
@@ -66,8 +68,8 @@ func (cluster *Cluster) GetNode(hostName string) (*Node, error) {
 
 func (cluster *Cluster) RebuildHost(hostName string) error {
 	host, err := cluster.pve.Node(hostName)
-	if err != nil {
-		return err
+	if err != nil { // host is probably down or otherwise unreachable
+		return fmt.Errorf("error retrieving %s: %s, possibly down?", hostName, err.Error())
 	}
 
 	// aquire lock on host, release on return
@@ -84,8 +86,9 @@ func (cluster *Cluster) RebuildHost(hostName string) error {
 	}
 	for _, vmid := range vms {
 		err := host.RebuildInstance(VM, vmid)
-		if err != nil {
-			return err
+		if err != nil { // if an error was encountered, continue and log the error
+			log.Print(err.Error())
+			continue
 		}
 	}
 
@@ -147,13 +150,13 @@ func (host *Node) RebuildInstance(instancetype InstanceType, vmid uint) error {
 		var err error
 		instance, err = host.VirtualMachine(vmid)
 		if err != nil {
-			return err
+			return fmt.Errorf("error retrieving %d: %s, possibly down?", vmid, err.Error())
 		}
 	} else if instancetype == CT {
 		var err error
 		instance, err = host.Container(vmid)
 		if err != nil {
-			return err
+			return fmt.Errorf("error retrieving %d: %s, possibly down?", vmid, err.Error())
 		}
 
 	}
