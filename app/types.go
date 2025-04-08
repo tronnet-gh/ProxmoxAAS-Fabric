@@ -48,8 +48,18 @@ type Instance struct {
 	configHostPCIs map[string]string
 }
 
+var VolumeTypes = []string{
+	"sata",
+	"scsi",
+	"ide",
+	"rootfs",
+	"mp",
+	"unused",
+}
+
 type VolumeID string
 type Volume struct {
+	Type    string   `json:"type"`
 	Storage string   `json:"storage"`
 	Format  string   `json:"format"`
 	Size    uint64   `json:"size"`

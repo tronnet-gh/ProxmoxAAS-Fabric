@@ -190,6 +190,9 @@ func (instance *Instance) RebuildVolume(host *Node, volid string) error {
 		return err
 	}
 
+	voltype := AnyPrefixes(volid, VolumeTypes)
+	volume.Type = voltype
+
 	instance.Volumes[VolumeID(volid)] = volume
 
 	return nil

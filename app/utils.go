@@ -36,11 +36,24 @@ func GetConfig(configPath string) Config {
 	return config
 }
 
-// returns if a device pcie bus id is a super device or subsystem device
+// checks if a device pcie bus id is a super device or subsystem device
 //
 // subsystem devices always has the format xxxx:yy.z, whereas super devices have the format xxxx:yy
 //
 // returns true if BusID has format xxxx:yy
 func DeviceBusIDIsSuperDevice(BusID DeviceID) bool {
 	return !strings.ContainsRune(string(BusID), '.')
+}
+
+// checks if string s has one of any prefixes, and returns the prefix or "" if there was no match
+//
+// matches the first prefix match in array order
+func AnyPrefixes(s string, prefixes []string) string {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(s, prefix) {
+			return prefix
+		}
+	}
+
+	return ""
 }
