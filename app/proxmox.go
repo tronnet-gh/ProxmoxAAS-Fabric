@@ -82,17 +82,17 @@ func (pve ProxmoxClient) Node(nodeName string) (*Node, error) {
 		functionid := FunctionID(x[1])
 		if _, ok := host.Devices[deviceid]; !ok {
 			host.Devices[deviceid] = &Device{
-				DeviceID:   deviceid,
-				DeviceName: device.DeviceName,
-				VendorName: device.VendorName,
-				Functions:  make(map[FunctionID]*Function),
+				Device_ID:   deviceid,
+				Device_Name: device.Device_Name,
+				Vendor_Name: device.Vendor_Name,
+				Functions:   make(map[FunctionID]*Function),
 			}
 		}
 		host.Devices[deviceid].Functions[functionid] = &Function{
-			FunctionID:   functionid,
-			FunctionName: device.SubsystemDeviceName,
-			VendorName:   device.SubsystemVendorName,
-			Reserved:     false,
+			Function_ID:   functionid,
+			Function_Name: device.Subsystem_Device_Name,
+			Vendor_Name:   device.Subsystem_Vendor_Name,
+			Reserved:      false,
 		}
 	}
 
@@ -225,7 +225,7 @@ func GetVolumeInfo(host *Node, volume string) (*Volume, error) {
 			volumeData.Storage = storageID
 			volumeData.Format = c.Format
 			volumeData.Size = uint64(c.Size)
-			volumeData.Volid = VolumeID(volumeID)
+			volumeData.File = volumeID
 		}
 	}
 

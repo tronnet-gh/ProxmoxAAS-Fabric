@@ -238,5 +238,7 @@ func (instance *Instance) RebuildDevice(host *Node, deviceid string) error {
 		// sub function assignment not supported yet
 	}
 
+	instance.Devices[InstanceDeviceID(instanceDeviceBusID)].Value = instanceDevice
+
 	return nil
 }

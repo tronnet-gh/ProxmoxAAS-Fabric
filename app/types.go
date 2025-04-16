@@ -59,11 +59,11 @@ var VolumeTypes = []string{
 
 type VolumeID string
 type Volume struct {
-	Type    string   `json:"type"`
-	Storage string   `json:"storage"`
-	Format  string   `json:"format"`
-	Size    uint64   `json:"size"`
-	Volid   VolumeID `json:"volid"`
+	Type    string `json:"type"`
+	Storage string `json:"storage"`
+	Format  string `json:"format"`
+	Size    uint64 `json:"size"`
+	File    string `json:"file"`
 }
 
 type NetID uint64
@@ -74,27 +74,28 @@ type Net struct {
 }
 
 type PVEDevice struct {
-	ID                  string `json:"id"`
-	DeviceName          string `json:"device_name"`
-	VendorName          string `json:"vendor_name"`
-	SubsystemDeviceName string `json:"subsystem_device_name"`
-	SubsystemVendorName string `json:"subsystem_vendor_name"`
+	ID                    string `json:"id"`
+	Device_Name           string `json:"device_name"`
+	Vendor_Name           string `json:"vendor_name"`
+	Subsystem_Device_Name string `json:"subsystem_device_name"`
+	Subsystem_Vendor_Name string `json:"subsystem_vendor_name"`
 }
 
 type DeviceID string
 type InstanceDeviceID uint64
 type Device struct {
-	DeviceID   DeviceID                 `json:"device_id"`
-	DeviceName string                   `json:"device_name"`
-	VendorName string                   `json:"vendor_name"`
-	Functions  map[FunctionID]*Function `json:"functions"`
-	Reserved   bool                     `json:"reserved"`
+	Device_ID   DeviceID                 `json:"device_id"`
+	Device_Name string                   `json:"device_name"`
+	Vendor_Name string                   `json:"vendor_name"`
+	Functions   map[FunctionID]*Function `json:"functions"`
+	Reserved    bool                     `json:"reserved"`
+	Value       string
 }
 
 type FunctionID string
 type Function struct {
-	FunctionID   FunctionID `json:"function_id"`
-	FunctionName string     `json:"subsystem_device_name"`
-	VendorName   string     `json:"subsystem_vendor_name"`
-	Reserved     bool       `json:"reserved"`
+	Function_ID   FunctionID `json:"function_id"`
+	Function_Name string     `json:"subsystem_device_name"`
+	Vendor_Name   string     `json:"subsystem_vendor_name"`
+	Reserved      bool       `json:"reserved"`
 }
