@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 )
 
@@ -179,6 +178,10 @@ func (host *Node) RebuildInstance(instancetype InstanceType, vmid uint) error {
 		instance.RebuildDevice(host, deviceid)
 	}
 
+	if instance.Type == VM {
+		instance.RebuildBoot()
+	}
+
 	return nil
 }
 
@@ -192,7 +195,7 @@ func (instance *Instance) RebuildVolume(host *Node, volid string) error {
 
 	voltype := AnyPrefixes(volid, VolumeTypes)
 	volume.Type = voltype
-
+	volume.Volume_ID = VolumeID(volid)
 	instance.Volumes[VolumeID(volid)] = volume
 
 	return nil
@@ -200,17 +203,14 @@ func (instance *Instance) RebuildVolume(host *Node, volid string) error {
 
 func (instance *Instance) RebuildNet(netid string) error {
 	net := instance.configNets[netid]
-	idnum, err := strconv.ParseUint(strings.TrimPrefix(netid, "net"), 10, 64)
-	if err != nil {
-		return err
-	}
 
 	netinfo, err := GetNetInfo(net)
+	netinfo.Net_ID = NetID(netid)
 	if err != nil {
 		return nil
 	}
 
-	instance.Nets[NetID(idnum)] = netinfo
+	instance.Nets[NetID(netid)] = netinfo
 
 	return nil
 }
@@ -222,23 +222,64 @@ func (instance *Instance) RebuildDevice(host *Node, deviceid string) error {
 	}
 
 	hostDeviceBusID := DeviceID(strings.Split(instanceDevice, ",")[0])
-
-	idbid, err := strconv.ParseUint(strings.TrimPrefix(deviceid, "hostpci"), 10, 64)
-	if err != nil {
-		return err
-	}
-	instanceDeviceBusID := InstanceDeviceID(idbid)
+	instanceDeviceBusID := DeviceID(deviceid)
 
 	if DeviceBusIDIsSuperDevice(hostDeviceBusID) {
-		instance.Devices[InstanceDeviceID(instanceDeviceBusID)] = host.Devices[DeviceID(hostDeviceBusID)]
-		for _, function := range instance.Devices[InstanceDeviceID(instanceDeviceBusID)].Functions {
+		instance.Devices[DeviceID(instanceDeviceBusID)] = host.Devices[DeviceBus(hostDeviceBusID)]
+		for _, function := range instance.Devices[DeviceID(instanceDeviceBusID)].Functions {
 			function.Reserved = true
 		}
 	} else {
 		// sub function assignment not supported yet
 	}
 
-	instance.Devices[InstanceDeviceID(instanceDeviceBusID)].Value = instanceDevice
+	instance.Devices[DeviceID(instanceDeviceBusID)].Device_ID = DeviceID(deviceid)
+	instance.Devices[DeviceID(instanceDeviceBusID)].Value = instanceDevice
 
 	return nil
+}
+
+func (instance *Instance) RebuildBoot() {
+	instance.Boot = BootOrder{}
+
+	eligibleBoot := map[string]bool{}
+	for k := range instance.Volumes {
+		eligiblePrefix := AnyPrefixes(string(k), []string{"sata", "scsi", "ide"})
+		if eligiblePrefix != "" {
+			eligibleBoot[string(k)] = true
+		}
+	}
+	for k := range instance.Nets {
+		eligibleBoot[string(k)] = true
+	}
+
+	log.Println(eligibleBoot)
+
+	x := strings.Split(instance.configBoot, "order=") // should be a;b;c;d ...
+	if len(x) == 2 {
+		y := strings.Split(x[1], ";")
+		for _, bootTarget := range y {
+			_, isEligible := eligibleBoot[bootTarget]
+			if val, ok := instance.Volumes[VolumeID(bootTarget)]; ok && isEligible { // if the item is eligible and is in volumes
+				instance.Boot.Enabled = append(instance.Boot.Enabled, val)
+				eligibleBoot[bootTarget] = false
+			} else if val, ok := instance.Nets[NetID(bootTarget)]; ok && isEligible { // if the item is eligible and is in nets
+				instance.Boot.Enabled = append(instance.Boot.Enabled, val)
+				eligibleBoot[bootTarget] = false
+			} else {
+				log.Printf("Encountered non-eligible boot target %s in instance %s\n", bootTarget, instance.Name)
+				eligibleBoot[bootTarget] = false
+			}
+		}
+	}
+
+	for bootTarget, isEligible := range eligibleBoot {
+		if val, ok := instance.Volumes[VolumeID(bootTarget)]; ok && isEligible { // if the item is eligible and is in volumes
+			instance.Boot.Disabled = append(instance.Boot.Disabled, val)
+		} else if val, ok := instance.Nets[NetID(bootTarget)]; ok && isEligible { // if the item is eligible and is in nets
+			instance.Boot.Disabled = append(instance.Boot.Disabled, val)
+		} else {
+			log.Printf("Encountered non-eligible boot target %s in instance %s\n", bootTarget, instance.Name)
+		}
+	}
 }

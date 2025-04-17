@@ -15,6 +15,14 @@ type ProxmoxClient struct {
 	client *proxmox.Client
 }
 
+type PVEDevice struct { // used only for requests to PVE
+	ID                    string `json:"id"`
+	Device_Name           string `json:"device_name"`
+	Vendor_Name           string `json:"vendor_name"`
+	Subsystem_Device_Name string `json:"subsystem_device_name"`
+	Subsystem_Vendor_Name string `json:"subsystem_vendor_name"`
+}
+
 func NewClient(url string, token string, secret string) ProxmoxClient {
 	HTTPClient := http.Client{
 		Transport: &http.Transport{
@@ -59,7 +67,7 @@ func (pve ProxmoxClient) Nodes() ([]string, error) {
 // Gets a Node's resources but does not recursively expand instances
 func (pve ProxmoxClient) Node(nodeName string) (*Node, error) {
 	host := Node{}
-	host.Devices = make(map[DeviceID]*Device)
+	host.Devices = make(map[DeviceBus]*Device)
 	host.Instances = make(map[InstanceID]*Instance)
 
 	node, err := pve.client.Node(context.Background(), nodeName)
@@ -78,11 +86,11 @@ func (pve ProxmoxClient) Node(nodeName string) (*Node, error) {
 		if len(x) != 2 { // this should always be true, but skip if not
 			continue
 		}
-		deviceid := DeviceID(x[0])
+		deviceid := DeviceBus(x[0])
 		functionid := FunctionID(x[1])
 		if _, ok := host.Devices[deviceid]; !ok {
 			host.Devices[deviceid] = &Device{
-				Device_ID:   deviceid,
+				Device_Bus:  deviceid,
 				Device_Name: device.Device_Name,
 				Vendor_Name: device.Vendor_Name,
 				Functions:   make(map[FunctionID]*Function),
@@ -130,6 +138,7 @@ func (host *Node) VirtualMachine(VMID uint) (*Instance, error) {
 	instance.configHostPCIs = config.MergeHostPCIs()
 	instance.configNets = config.MergeNets()
 	instance.configDisks = MergeVMDisksAndUnused(config)
+	instance.configBoot = config.Boot
 
 	instance.pveconfig = config
 	instance.Type = VM
@@ -140,7 +149,7 @@ func (host *Node) VirtualMachine(VMID uint) (*Instance, error) {
 	instance.Memory = uint64(vm.VirtualMachineConfig.Memory) * MiB
 	instance.Volumes = make(map[VolumeID]*Volume)
 	instance.Nets = make(map[NetID]*Net)
-	instance.Devices = make(map[InstanceDeviceID]*Device)
+	instance.Devices = make(map[DeviceID]*Device)
 
 	return &instance, nil
 }
