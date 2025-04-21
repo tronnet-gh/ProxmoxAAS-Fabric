@@ -120,28 +120,28 @@ func Run() {
 	})
 
 	router.POST("/sync", func(c *gin.Context) {
-		go func() {
-			start := time.Now()
-			log.Printf("Starting cluster sync\n")
-			cluster.Sync()
-			log.Printf("Synced cluster in %fs\n", time.Since(start).Seconds())
-		}()
+		//go func() {
+		start := time.Now()
+		log.Printf("Starting cluster sync\n")
+		cluster.Sync()
+		log.Printf("Synced cluster in %fs\n", time.Since(start).Seconds())
+		//}()
 	})
 
 	router.POST("/nodes/:node/sync", func(c *gin.Context) {
 		nodeid := c.Param("node")
-		go func() {
-			start := time.Now()
-			log.Printf("Starting %s sync\n", nodeid)
-			err := cluster.RebuildHost(nodeid)
-			if err != nil {
-				log.Printf("Failed to sync %s: %s", nodeid, err.Error())
-				return
-			} else {
-				log.Printf("Synced %s in %fs\n", nodeid, time.Since(start).Seconds())
-				return
-			}
-		}()
+		//go func() {
+		start := time.Now()
+		log.Printf("Starting %s sync\n", nodeid)
+		err := cluster.RebuildHost(nodeid)
+		if err != nil {
+			log.Printf("Failed to sync %s: %s", nodeid, err.Error())
+			return
+		} else {
+			log.Printf("Synced %s in %fs\n", nodeid, time.Since(start).Seconds())
+			return
+		}
+		//}()
 	})
 
 	router.POST("/nodes/:node/instances/:vmid/sync", func(c *gin.Context) {
@@ -152,31 +152,31 @@ func Run() {
 			return
 		}
 
-		go func() {
-			start := time.Now()
-			log.Printf("Starting %s.%d sync\n", nodeid, vmid)
+		//go func() {
+		start := time.Now()
+		log.Printf("Starting %s.%d sync\n", nodeid, vmid)
 
-			node, err := cluster.GetNode(nodeid)
-			if err != nil {
-				log.Printf("Failed to sync %s.%d: %s", nodeid, vmid, err.Error())
-				return
-			}
+		node, err := cluster.GetNode(nodeid)
+		if err != nil {
+			log.Printf("Failed to sync %s.%d: %s", nodeid, vmid, err.Error())
+			return
+		}
 
-			instance, err := node.GetInstance(uint(vmid))
-			if err != nil {
-				log.Printf("Failed to sync %s.%d: %s", nodeid, vmid, err.Error())
-				return
-			}
+		instance, err := node.GetInstance(uint(vmid))
+		if err != nil {
+			log.Printf("Failed to sync %s.%d: %s", nodeid, vmid, err.Error())
+			return
+		}
 
-			err = node.RebuildInstance(instance.Type, uint(vmid))
-			if err != nil {
-				log.Printf("Failed to sync %s.%d: %s", nodeid, vmid, err.Error())
-				return
-			} else {
-				log.Printf("Synced %s.%d in %fs\n", nodeid, vmid, time.Since(start).Seconds())
-				return
-			}
-		}()
+		err = node.RebuildInstance(instance.Type, uint(vmid))
+		if err != nil {
+			log.Printf("Failed to sync %s.%d: %s", nodeid, vmid, err.Error())
+			return
+		} else {
+			log.Printf("Synced %s.%d in %fs\n", nodeid, vmid, time.Since(start).Seconds())
+			return
+		}
+		//}()
 	})
 
 	router.Run("0.0.0.0:" + strconv.Itoa(config.ListenPort))

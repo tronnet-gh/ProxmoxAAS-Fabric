@@ -253,8 +253,6 @@ func (instance *Instance) RebuildBoot() {
 		eligibleBoot[string(k)] = true
 	}
 
-	log.Println(eligibleBoot)
-
 	x := strings.Split(instance.configBoot, "order=") // should be a;b;c;d ...
 	if len(x) == 2 {
 		y := strings.Split(x[1], ";")
