@@ -23,6 +23,12 @@ type PVEDevice struct { // used only for requests to PVE
 	Subsystem_Vendor_Name string `json:"subsystem_vendor_name"`
 }
 
+type PVEProctype struct {
+	Custom int
+	Name   string
+	Vendor string
+}
+
 func NewClient(url string, token string, secret string) ProxmoxClient {
 	HTTPClient := http.Client{
 		Transport: &http.Transport{
@@ -102,6 +108,15 @@ func (pve ProxmoxClient) Node(nodeName string) (*Node, error) {
 			Vendor_Name:   device.Subsystem_Vendor_Name,
 			Reserved:      false,
 		}
+	}
+
+	proctypes := []PVEProctype{}
+	err = pve.client.Get(context.Background(), fmt.Sprintf("/nodes/%s/capabilities/qemu/cpu", nodeName), &proctypes)
+	if err != nil {
+		return &host, err
+	}
+	for _, proctype := range proctypes {
+		host.Proctypes = append(host.Proctypes, proctype.Name)
 	}
 
 	host.Name = node.Name

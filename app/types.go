@@ -20,6 +20,7 @@ type Node struct {
 	Swap      uint64                   `json:"swap"`
 	Devices   map[DeviceBus]*Device    `json:"devices"`
 	Instances map[InstanceID]*Instance `json:"instances"`
+	Proctypes []string                 `json:"cpus"`
 	pvenode   *proxmox.Node
 }
 
