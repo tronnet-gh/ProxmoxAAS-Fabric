@@ -68,6 +68,7 @@ type Volume struct {
 	Format    string   `json:"format"`
 	Size      uint64   `json:"size"`
 	File      string   `json:"file"`
+	MP        string   `json:"mp"`
 }
 
 type NetID string

@@ -234,6 +234,11 @@ func GetVolumeInfo(host *Node, volume string) (*Volume, error) {
 
 	storageID := strings.Split(volume, ":")[0]
 	volumeID := strings.Split(volume, ",")[0]
+	mp := ""
+	if strings.Contains(volume, "mp=") {
+		x := strings.Split(volume, "mp=")[1]
+		mp = strings.Split(x, ",")[0]
+	}
 	storage, err := host.pvenode.Storage(context.Background(), storageID)
 	if err != nil {
 		return &volumeData, nil
@@ -250,6 +255,7 @@ func GetVolumeInfo(host *Node, volume string) (*Volume, error) {
 			volumeData.Format = c.Format
 			volumeData.Size = uint64(c.Size)
 			volumeData.File = volumeID
+			volumeData.MP = mp
 		}
 	}
 
