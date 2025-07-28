@@ -253,31 +253,31 @@ func (instance *Instance) RebuildBoot() {
 		eligibleBoot[string(k)] = true
 	}
 
-	x := strings.Split(instance.configBoot, "order=") // should be a;b;c;d ...
-	if len(x) == 2 {
-		y := strings.Split(x[1], ";")
-		for _, bootTarget := range y {
+	bootOrder := PVEObjectStringToMap(instance.configBoot)["order"]
+
+	if len(bootOrder) != 0 {
+		for bootTarget := range strings.SplitSeq(bootOrder, ";") { // iterate over elements selected for boot, add them to Enabled, and remove them from eligible boot target
 			_, isEligible := eligibleBoot[bootTarget]
 			if val, ok := instance.Volumes[VolumeID(bootTarget)]; ok && isEligible { // if the item is eligible and is in volumes
 				instance.Boot.Enabled = append(instance.Boot.Enabled, val)
-				eligibleBoot[bootTarget] = false
+				delete(eligibleBoot, bootTarget)
 			} else if val, ok := instance.Nets[NetID(bootTarget)]; ok && isEligible { // if the item is eligible and is in nets
 				instance.Boot.Enabled = append(instance.Boot.Enabled, val)
-				eligibleBoot[bootTarget] = false
-			} else {
-				log.Printf("Encountered non-eligible boot target %s in instance %s\n", bootTarget, instance.Name)
-				eligibleBoot[bootTarget] = false
+				delete(eligibleBoot, bootTarget)
+			} else { // item is not eligible for boot but is included in the boot order
+				log.Printf("Encountered enabled but non-eligible boot target %s in instance %s\n", bootTarget, instance.Name)
+				delete(eligibleBoot, bootTarget)
 			}
 		}
 	}
 
-	for bootTarget, isEligible := range eligibleBoot {
+	for bootTarget, isEligible := range eligibleBoot { // iterate over remaining items, add them to Disabled
 		if val, ok := instance.Volumes[VolumeID(bootTarget)]; ok && isEligible { // if the item is eligible and is in volumes
 			instance.Boot.Disabled = append(instance.Boot.Disabled, val)
 		} else if val, ok := instance.Nets[NetID(bootTarget)]; ok && isEligible { // if the item is eligible and is in nets
 			instance.Boot.Disabled = append(instance.Boot.Disabled, val)
-		} else {
-			log.Printf("Encountered non-eligible boot target %s in instance %s\n", bootTarget, instance.Name)
+		} else { // item is not eligible and is not already in the boot order, skip adding to model
+			log.Printf("Encountered disabled and non-eligible boot target %s in instance %s\n", bootTarget, instance.Name)
 		}
 	}
 }

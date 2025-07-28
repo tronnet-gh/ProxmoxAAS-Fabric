@@ -232,14 +232,11 @@ func MergeCTDisksAndUnused(cc *proxmox.ContainerConfig) map[string]string {
 func GetVolumeInfo(host *Node, volume string) (*Volume, error) {
 	volumeData := Volume{}
 
-	storageID := strings.Split(volume, ":")[0]
-	volumeID := strings.Split(volume, ",")[0]
-	mp := ""
-	if strings.Contains(volume, "mp=") {
-		x := strings.Split(volume, "mp=")[1]
-		mp = strings.Split(x, ",")[0]
-	}
-	storage, err := host.pvenode.Storage(context.Background(), storageID)
+	volumeObj := PVEObjectStringToMap(volume)
+	volumeFile := volumeObj[""]
+	volumeStorage := strings.Split(volumeFile, ":")[0]
+
+	storage, err := host.pvenode.Storage(context.Background(), volumeStorage)
 	if err != nil {
 		return &volumeData, nil
 	}
@@ -250,38 +247,58 @@ func GetVolumeInfo(host *Node, volume string) (*Volume, error) {
 	}
 
 	for _, c := range content {
-		if c.Volid == volumeID {
-			volumeData.Storage = storageID
+		if c.Volid == volumeFile {
+			volumeData.Storage = volumeStorage
 			volumeData.Format = c.Format
 			volumeData.Size = uint64(c.Size)
-			volumeData.File = volumeID
-			volumeData.MP = mp
+			volumeData.File = volumeFile
+			volumeData.MP = volumeObj["mp"]
 		}
 	}
 
 	return &volumeData, nil
 }
 
-func GetNetInfo(net string) (*Net, error) {
+func GetNetInfo(netstring string) (*Net, error) {
 	n := Net{}
 
-	for _, val := range strings.Split(net, ",") {
-		if strings.HasPrefix(val, "rate=") {
-			rate, err := strconv.ParseUint(strings.TrimPrefix(val, "rate="), 10, 64)
-			if err != nil {
-				return &n, err
-			}
-			n.Rate = rate
-		} else if strings.HasPrefix(val, "tag=") {
-			vlan, err := strconv.ParseUint(strings.TrimPrefix(val, "tag="), 10, 64)
-			if err != nil {
-				return &n, err
-			}
-			n.VLAN = vlan
-		}
-	}
+	netobj := PVEObjectStringToMap(netstring)
 
-	n.Value = net
+	rate, err := strconv.ParseUint(netobj["rate"], 10, 64)
+	if err != nil {
+		return &n, err
+	}
+	n.Rate = rate
+
+	vlan, err := strconv.ParseUint(netobj["tag"], 10, 64)
+	if err != nil {
+		return &n, err
+	}
+	n.VLAN = vlan
+
+	n.Value = netstring
 
 	return &n, nil
+}
+
+// most pve objects (nets, disks, pcie, etc) have the following similar format:
+// objname: v1,k2=v2,k3=v3,k4=v4 ...
+// this function maps such strings to a map so that each individual key or value can be found more quickly
+// in pcie or disks, the first value often does not have a key name, in such cases the key will be empty string ""
+func PVEObjectStringToMap(objectstring string) map[string]string {
+	objectmap := map[string]string{}
+	for v := range strings.SplitSeq(objectstring, ",") {
+		key := ""
+		val := ""
+		if strings.Contains(v, "=") {
+			x := strings.Split(v, "=")
+			key = x[0]
+			val = x[1]
+		} else {
+			key = ""
+			val = v
+		}
+		objectmap[key] = val
+	}
+	return objectmap
 }
