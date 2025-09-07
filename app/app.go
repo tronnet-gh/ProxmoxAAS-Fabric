@@ -13,7 +13,7 @@ import (
 	"github.com/luthermonson/go-proxmox"
 )
 
-const APIVersion string = "0.0.3"
+const APIVersion string = "1.0.0"
 
 var client ProxmoxClient
 
